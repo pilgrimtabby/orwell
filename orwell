@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+clear
+echo "Password is required to continue."
+sudo echo
+clear
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+current_status=`cat $SCRIPT_DIR"/status.txt"`
+if [[ $current_status == "0" ]]; then
+    file=$SCRIPT_DIR"/blocked.txt"
+    new_status=1
+    echo "Sites blocked!"
+else
+    file=$SCRIPT_DIR"/default.txt"
+    new_status=0
+    echo "Sites unblocked!"
+fi
+
+echo $new_status > $SCRIPT_DIR"/status.txt"
+sudo cp $file "/etc/hosts"
+
+# Flush DNS cache so everything works
+sudo dscacheutil -flushcache  # This should only happen if Monterey / Big Sur or newer
+sudo killall -HUP mDNSResponder
+
+echo "You may need to restart your web browser to see changes."
+echo "Press any key to exit."
+read -n1
