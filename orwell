@@ -1,30 +1,282 @@
 #!/usr/bin/env bash
 
-clear
-echo "Password is required to continue."
-sudo echo
-clear
+make_config() {
+    [[ ! -d $CONFIG_DIR ]] && mkdir $CONFIG_DIR
+    [[ ! -f $BACKUP_FILE ]] && cp /etc/hosts $BACKUP_FILE
+    [[ ! -f $BLACKLIST ]] && touch $BLACKLIST
+    [[ ! -f $STATUS_FILE ]] && echo 0 > $STATUS_FILE
+    [[ ! -f $PERM_BLACKLIST ]] && touch $PERM_BLACKLIST
+}
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+help() {
+    echo "Thanks for using Orwell! (c) pilgrim_tabby, 2024."
+    echo "Source code: https://github.com/pilgrimtabby/orwell"
+    echo "Commands:"
+    echo "  -a  Add one or more URLs to the blacklist. This blacklist can be enabled/disabled."
+    echo "      Usage: $0 -a <URL> <URL> ..."
+    echo "      Example: $0 -a www.google.com"
+    echo "  -x  Specify one or more URLs to block always, even when the blacklist isn't enforced."
+    echo "      This list is called the permanent blacklist."
+    echo "      Usage: $0 -x <URL> <URL> ..."
+    echo "      Example: $0 -x www.google.com"
+    echo "  -d  Delete one or more URLs from all blacklists."
+    echo "      Usage: $0 -d <URL> <URL> ..."
+    echo "      Example: $0 -d www.google.com"
+    echo "  -e  Empty the blacklist or the permament blacklist."
+    echo "      Usage: $0 -e blacklist  OR  $0 -e p-blacklist"
+    echo "  -t  Toggle blacklist status (enforced or not enforced)."
+    echo "  -s  Show blacklist status (enforced or not enforced)."
+    echo "  -l  List all sites on blacklist and all permanently blocked sites."
+    echo "  -h  Show this help message."
+}
 
-current_status=`cat $SCRIPT_DIR"/status.txt"`
-if [[ $current_status == "0" ]]; then
-    file=$SCRIPT_DIR"/blocked.txt"
-    new_status=1
-    echo "Sites blocked!"
-else
-    file=$SCRIPT_DIR"/default.txt"
-    new_status=0
-    echo "Sites unblocked!"
-fi
+get_permission() {
+    sudo -v
+}
 
-echo $new_status > $SCRIPT_DIR"/status.txt"
-sudo cp $file "/etc/hosts"
+add() {
+    get_permission
 
-# Flush DNS cache so everything works
-sudo dscacheutil -flushcache  # This should only happen if Monterey / Big Sur or newer
-sudo killall -HUP mDNSResponder
+    added_url="false"
+    current_blacklist=`cat $BLACKLIST`
 
-echo "You may need to restart your web browser to see changes."
-echo "Press any key to exit."
-read -n1
+    for var in "$@"
+    do
+        if [[ "$current_blacklist" == *"$var"* ]]; then
+            echo "$var already in blacklist"
+        elif [[ "$var" == www.*.* ]]; then
+            echo -e "127.0.0.1\t$var" >> $BLACKLIST
+            echo "$var added to blacklist!"
+            added_url="true"
+        else
+            echo "Warning: $var not added. Start with www and end with domain (like www.google.com)"
+        fi
+    done
+
+    if [[ $added_url == "true" ]]; then
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 1 ]]; then
+            block
+            echo "Updated blacklist in force."
+            echo "You may need to restart your browser for changes to take effect."
+        fi
+    fi
+}
+
+delete() {
+    get_permission
+
+    deleted_basic_url="false"
+    deleted_perm_url="false"
+    current_blacklist=`cat $BLACKLIST`
+    perm_blacklist=`cat $PERM_BLACKLIST`
+
+    for var in "$@"
+    do
+        if [[ "$current_blacklist" == *"$var"* ]]; then
+            sed -i "" "/$var/d" $BLACKLIST
+            echo "$var removed from blacklist!"
+            deleted_basic_url="true"
+        elif [[ $perm_blacklist == *"$var"* ]]; then
+            sed -i "" "/$var/d" $PERM_BLACKLIST
+            echo "$var removed from permanent blacklist!"
+            deleted_perm_url="true"
+        else
+            echo "Warning: $var not in either blacklist, was not deleted"
+        fi
+    done
+
+    if [[ "$deleted_basic_url" == "true" ]] || [[ "$deleted_perm_url" == "true" ]]; then
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 1 ]] || [[ "$deleted_perm_url" == "true" ]]; then
+            block
+            echo "Updated blacklist in force."
+            echo "You may need to restart your browser for changes to take effect."
+        fi
+    fi
+}
+
+list() {
+    current_blacklist=`cat $BLACKLIST`
+    current_perm_blacklist=`cat $PERM_BLACKLIST`
+    blacklist_len=${#current_blacklist}
+    perm_blacklist_len=${#current_perm_blacklist}
+
+    echo "Blacklist:"
+    if [[ $blacklist_len == 0 ]]; then
+        echo "  Empty"
+    else
+        while IFS= read -r line; do
+            echo "  ${line:10}"
+        done < $BLACKLIST
+    fi
+
+    echo "Permanent blacklist:"
+    if [[ $perm_blacklist_len == 0 ]]; then
+        echo "  Empty"
+    else
+        while IFS= read -r line; do
+            echo "  ${line:10}"
+        done < $PERM_BLACKLIST
+    fi
+}
+
+toggle() {
+    get_permission
+
+    status_val=`cat $STATUS_FILE`
+    if [[ "$status_val" == 0 ]]; then
+        block
+        echo "Blacklist is being enforced!"
+    else
+        unblock
+        echo "Blacklist has been turned off."
+    fi
+}
+
+flush_DNS() {
+    sys_version_full=`sw_vers -productVersion`
+    sys_version_plain=${sys_version_full:0:2}
+
+    [[ $sys_version_plain > 10 ]] && sudo dscacheutil -flushcache
+    sudo killall -HUP mDNSResponder
+}
+
+block() {
+    tmp_file=$CONFIG_DIR"/tmp"
+    awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
+
+    echo "# Orwell config -- do not alter anything beyond this point" >> $tmp_file
+    while IFS= read -r line; do
+        echo "$line"
+    done < $BLACKLIST >> $tmp_file
+    while IFS= read -r line; do
+        echo "$line"
+    done < $PERM_BLACKLIST >> $tmp_file
+
+    sudo cp $tmp_file /etc/hosts
+
+    rm $tmp_file
+    flush_DNS
+    echo 1 > $STATUS_FILE
+}
+
+unblock() {
+    tmp_file=$CONFIG_DIR"/tmp"
+    awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
+
+    echo "# Orwell config -- do not alter anything beyond this point" >> $tmp_file
+    while IFS= read -r line; do
+        echo "$line"
+    done < $PERM_BLACKLIST >> $tmp_file
+    sudo cp $tmp_file /etc/hosts
+
+    flush_DNS
+    echo 0 > $STATUS_FILE
+}
+
+show_status() {
+    status_val=`cat $STATUS_FILE`
+    if [[ "$status_val" == 0 ]]; then
+        echo "Not enforced"
+    else
+        echo "Enforced."
+        echo "If sites are still loading, try restarting your internet browser."
+    fi
+}
+
+permanent_add() {
+    get_permission
+
+    added_url="false"
+    current_blacklist=`cat $PERM_BLACKLIST`
+
+    for var in "$@"
+    do
+        if [[ "$current_blacklist" == *"$var"* ]]; then
+            echo "$var already in permanent blacklist"
+        elif [[ "$var" == www.*.* ]]; then
+            echo -e "127.0.0.1\t$var" >> $PERM_BLACKLIST
+            echo "$var added to permanent blacklist!"
+            added_url="true"
+        else
+            echo "Warning: $var not added. Start with www and end with domain (like www.google.com)"
+        fi
+    done
+
+    if [[ $added_url == "true" ]]; then
+        block
+        echo "Updated permanent blacklist in force."
+        echo "You may need to restart your browser for changes to take effect."
+    fi
+}
+
+empty() {
+    if [[ $1 == "blacklist" ]]; then
+        > $BLACKLIST
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 1 ]]; then
+            unblock
+        fi
+        echo "Blacklist has been emptied!"
+    elif [[ $1 == "p-blacklist" ]]; then
+        > $PERM_BLACKLIST
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 1 ]]; then
+            unblock
+        fi
+        echo "Permanent blacklist has been emptied!"
+    else
+        echo "Error: argument must be blacklist or p-blacklist."
+    fi
+}
+
+main() {
+    if [[ "$1" != -* ]]; then
+        help
+        exit
+    fi
+
+    CONFIG_DIR=~/.config/orwell
+    BACKUP_FILE=$CONFIG_DIR"/backup_file"
+    BLACKLIST=$CONFIG_DIR"/blacklist"
+    PERM_BLACKLIST=$CONFIG_DIR"/perm_blacklist"
+    STATUS_FILE=$CONFIG_DIR"/status"
+
+    make_config
+
+    optspec="a:x:d:e:tsl"
+    while getopts "$optspec" optchar
+    do
+        case "${optchar}" in
+            a)
+                add "${@:2}"
+                ;;
+            x)
+                permanent_add "${@:2}"
+                ;;
+            d)
+                delete "${@:2}"
+                ;;
+            e)
+                empty $2
+                ;;
+            t)
+                toggle
+                ;;
+            s)
+                show_status
+                ;;
+            l)
+                list
+                ;;
+            *)
+                help
+                ;;
+        esac
+    done
+}
+
+
+
+main $@
