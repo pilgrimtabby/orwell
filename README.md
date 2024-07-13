@@ -45,4 +45,6 @@ Simply download the source code and move `orwell` to wherever you want it, like 
 
 Orwell modifies your `/etc/hosts` file and flushes the DNS cache. This should be generally harmless, but things could rarely go wrong, so you've been warned.
 
+Orwell stores a backup of your `/etc/hosts` file in `~/.config/orwell/backup_file`. If you need to, you can use this file to restore `/etc/hosts` to its original state.
+
 To uninstall Orwell, just delete it. You may also want to delete its configuration files, which are stored in `~/.config/orwell`. All modifications made to `/etc/hosts` are preceded with a comment that says "Orwell config", so if you want/need to delete those modifications, you can open `/etc/hosts` and do so using `sudo nano` or another text editor program.
