@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 make_config() {
+    [[ ! -d ~/.config ]] && mkdir ~/.config
     [[ ! -d $CONFIG_DIR ]] && mkdir $CONFIG_DIR
     [[ ! -f $BACKUP_FILE ]] && cp /etc/hosts $BACKUP_FILE
     [[ ! -f $BLACKLIST ]] && touch $BLACKLIST
