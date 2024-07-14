@@ -10,24 +10,41 @@ make_config() {
 }
 
 help() {
-    echo "Thanks for using Orwell! (c) pilgrim_tabby, 2024."
-    echo "Source code: https://github.com/pilgrimtabby/orwell"
-    echo "Commands:"
-    echo "  -a  Add one or more URLs to the blacklist. This blacklist can be enabled/disabled."
+    echo "DESCRIPTION"
+    echo "  Easily block and unblock websites on MacOS."
+    echo "  There are two blacklists, the togglable one (accessed using -a and -t)"
+    echo "  and the permanent one (accessed using -x). The permanent one is always"
+    echo "  active; the toggleable one can be enabled and disabled. Useful if you"
+    echo "  want to allow some sites sometimes while always blocking others."
+    echo
+    echo "INFO"
+    echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
+    echo "  Source code here: https://github.com/pilgrimtabby/orwell"
+    echo
+    echo "OPTIONS"
+    echo "  -a  Add URL(s) to the toggleable blacklist (use -t to enable/disable)."
     echo "      Usage: orwell -a <URL> <URL> ..."
     echo "      Example: orwell -a www.google.com"
-    echo "  -x  Specify one or more URLs to block always, even when the blacklist isn't enforced."
-    echo "      This list is called the permanent blacklist."
+    echo
+    echo "  -x  Add URL(s) to the permanent blacklist."
+    echo "      This list is always enforced, even if the toggleable blacklist is off."
     echo "      Usage: orwell -x <URL> <URL> ..."
     echo "      Example: orwell -x www.google.com"
-    echo "  -d  Delete one or more URLs from all blacklists."
+    echo
+    echo "  -d  Delete URL(s) from both blacklists."
     echo "      Usage: orwell -d <URL> <URL> ..."
     echo "      Example: orwell -d www.google.com"
-    echo "  -e  Empty the blacklist or the permament blacklist."
-    echo "      Usage: orwell -e blacklist  OR  orwell -e p-blacklist"
-    echo "  -t  Toggle blacklist status (enforced or not enforced)."
-    echo "  -s  Show blacklist status (enforced or not enforced)."
-    echo "  -l  List all sites on blacklist and all permanently blocked sites."
+    echo
+    echo "  -e  Empty either of the blacklists."
+    echo "      Usage: orwell -e blacklist   (empty toggleable blacklist)"
+    echo "             orwell -e p-blacklist (empty permanent blacklist)"
+    echo
+    echo "  -t  Toggle toggleable blacklist status (enforced or not enforced)."
+    echo
+    echo "  -s  Show toggleable blacklist status (enforced or not enforced)."
+    echo
+    echo "  -l  List all sites on both blacklists."
+    echo
     echo "  -h  Show this help message."
 }
 
