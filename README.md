@@ -5,9 +5,9 @@ I wrote this program for personal use and there might be bugs; feel free to add 
 
 # Usage
 
-There are two blacklists, the togglable one (accessed using -a and -t) and the permanent one (accessed using -x). The permanent one is always active; the toggleable one can be enabled and disabled with the `-t` flag. This is useful if you want to allow some sites sometimes while always blocking others.
+There are two blacklists, the togglable one (accessed using `-a` and `-t`) and the permanent one (accessed using `-x`). The permanent one is always active; the toggleable one can be enabled and disabled with the `-t` flag. This is useful if you want to allow some sites sometimes while always blocking others.
 
-Use flag `-a` to add URL(s) to the toggleable blacklist (use -t to enable/disable).
+Use flag `-a` to add URL(s) to the toggleable blacklist (use `-t` to enable/disable).
 
 - Usage: `orwell -a <URL> <URL>` ...
 - Example: `orwell -a www.google.com` adds google.com to the blacklist.
