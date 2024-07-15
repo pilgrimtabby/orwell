@@ -88,7 +88,7 @@ main() {
                 help
                 ;;
             *)
-                echo "Type orwell -h a list of commands."
+                echo "Type orwell -h for a list of commands."
                 ;;
         esac
     done
