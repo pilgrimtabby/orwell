@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 
 make_config() {
+    CONFIG_DIR=~/.config/orwell
+    BACKUP_FILE=$CONFIG_DIR"/backup_file"
+    BLACKLIST=$CONFIG_DIR"/blacklist"
+    PERM_BLACKLIST=$CONFIG_DIR"/perm_blacklist"
+    STATUS_FILE=$CONFIG_DIR"/status"
+
     [[ ! -d ~/.config ]] && mkdir ~/.config
     [[ ! -d $CONFIG_DIR ]] && mkdir $CONFIG_DIR
     [[ ! -f $BACKUP_FILE ]] && cp /etc/hosts $BACKUP_FILE
     [[ ! -f $BLACKLIST ]] && touch $BLACKLIST
-    [[ ! -f $STATUS_FILE ]] && echo 0 > $STATUS_FILE
     [[ ! -f $PERM_BLACKLIST ]] && touch $PERM_BLACKLIST
+    [[ ! -f $STATUS_FILE ]] && echo 0 > $STATUS_FILE
 }
 
 help() {
@@ -52,26 +58,47 @@ get_permission() {
     sudo -v
 }
 
+find_url_line() {
+    line_no=1
+    while IFS= read -r line; do
+        [[ "${line:10}" == "$1" ]] && echo $line_no && return
+        ((line_no++))
+    done < $2
+    echo -1
+}
+
 add() {
     get_permission
 
-    added_url="false"
-    current_blacklist=`cat $BLACKLIST`
+    url_added="false"
 
-    for var in "$@"
+    for url in "$@"
     do
-        if [[ "$current_blacklist" == *"$var"* ]]; then
-            echo "$var already in blacklist"
-        elif [[ "$var" == www.*.* ]]; then
-            echo -e "127.0.0.1\t$var" >> $BLACKLIST
-            echo "$var added to blacklist!"
-            added_url="true"
-        else
-            echo "Warning: $var not added. Start with www and end with domain (like www.google.com)"
+        orig_url="$url"
+        [[ "$url" == https://* ]] && url="${url:8}"
+        [[ "$url" == http://* ]] && url="${url:7}"
+        [[ "$url" != www.* ]] && url="www.$url"
+
+        url_line_no=$(find_url_line $url $BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in blacklist."
+            continue
         fi
+
+        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in permanent blacklist."
+            echo "Please remove it from that blacklist first."
+            continue
+        fi
+
+        echo -e "127.0.0.1\t$url" >> $BLACKLIST
+        echo -e "127.0.0.1\t${url:4}" >> $BLACKLIST
+        echo "$orig_url added to blacklist!"
+        url_added="true"
     done
 
-    if [[ $added_url == "true" ]]; then
+    if [[ $url_added == "true" ]]; then
         status_val=`cat $STATUS_FILE`
         if [[ "$status_val" == 1 ]]; then
             block
@@ -84,57 +111,70 @@ add() {
 delete() {
     get_permission
 
-    deleted_basic_url="false"
-    deleted_perm_url="false"
-    current_blacklist=`cat $BLACKLIST`
-    perm_blacklist=`cat $PERM_BLACKLIST`
+    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
+    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
 
-    for var in "$@"
+    for url in "$@"
     do
-        if [[ "$current_blacklist" == *"$var"* ]]; then
-            sed -i "" "/$var/d" $BLACKLIST
-            echo "$var removed from blacklist!"
-            deleted_basic_url="true"
-        elif [[ $perm_blacklist == *"$var"* ]]; then
-            sed -i "" "/$var/d" $PERM_BLACKLIST
-            echo "$var removed from permanent blacklist!"
-            deleted_perm_url="true"
-        else
-            echo "Warning: $var not in either blacklist, was not deleted"
+        deleted_url="false"
+        orig_url="$url"
+        [[ "$url" == https://* ]] && url="${url:8}"
+        [[ "$url" == http://* ]] && url="${url:7}"
+        [[ "$url" != www.* ]] && url="www.$url"
+
+        url_line_no=$(find_url_line $url $BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
+            echo "$orig_url removed from blacklist!"
+            deleted_url="true"
         fi
+
+        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
+            echo "$orig_url removed from permanent blacklist!"
+            deleted_url="true"
+        fi
+
+        [[ $deleted_url == "false" ]] && echo "Warning: URL not found."
     done
 
-    if [[ "$deleted_basic_url" == "true" ]] || [[ "$deleted_perm_url" == "true" ]]; then
-        status_val=`cat $STATUS_FILE`
-        if [[ "$status_val" == 1 ]] || [[ "$deleted_perm_url" == "true" ]]; then
-            block
-            echo "Updated blacklist in force."
-            echo "You may need to restart your browser for changes to take effect."
-        fi
+    blacklist_len_new=`wc -c < $BLACKLIST | tr -d " "`
+    p_blacklist_len_new=`wc -c < $PERM_BLACKLIST | tr -d " "`
+    blacklist_diff=$(( $blacklist_len_new - $blacklist_len ))
+    p_blacklist_diff=$(( $p_blacklist_len_new - $p_blacklist_len ))
+    status_val=`cat $STATUS_FILE`
+
+    if [[ $status_val == 1 && $blacklist_diff != 0 ]] || [[ $p_blacklist_diff != 0 ]]; then
+        block
+        echo "Updated blacklist in force."
+        echo "You may need to restart your browser for changes to take effect."
     fi
 }
 
 list() {
-    current_blacklist=`cat $BLACKLIST`
-    current_perm_blacklist=`cat $PERM_BLACKLIST`
-    blacklist_len=${#current_blacklist}
-    perm_blacklist_len=${#current_perm_blacklist}
+    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
+    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
 
     echo "Blacklist:"
     if [[ $blacklist_len == 0 ]]; then
         echo "  Empty"
     else
+        index=0
         while IFS= read -r line; do
-            echo "  ${line:10}"
+            [[ $(( $index % 2 )) == 1 ]] && echo "  ${line:10}"
+            ((index++))
         done < $BLACKLIST
     fi
 
     echo "Permanent blacklist:"
-    if [[ $perm_blacklist_len == 0 ]]; then
+    if [[ $p_blacklist_len == 0 ]]; then
         echo "  Empty"
     else
+        index=0
         while IFS= read -r line; do
-            echo "  ${line:10}"
+            [[ $(( index % 2 )) == 1 ]] && echo "  ${line:10}"
+            ((index++))
         done < $PERM_BLACKLIST
     fi
 }
@@ -153,10 +193,15 @@ toggle() {
 }
 
 flush_DNS() {
+    get_permission
+
     sys_version_full=`sw_vers -productVersion`
     sys_version_plain=${sys_version_full:0:2}
+    [[ $sys_version_plain == *.* ]] && sys_version_plain=9
 
+    # This command only necessary on Big Sur and newer
     [[ $sys_version_plain > 10 ]] && sudo dscacheutil -flushcache
+
     sudo killall -HUP mDNSResponder
 }
 
@@ -173,8 +218,8 @@ block() {
     done < $PERM_BLACKLIST >> $tmp_file
 
     sudo cp $tmp_file /etc/hosts
-
     rm $tmp_file
+
     flush_DNS
     echo 1 > $STATUS_FILE
 }
@@ -187,7 +232,9 @@ unblock() {
     while IFS= read -r line; do
         echo "$line"
     done < $PERM_BLACKLIST >> $tmp_file
+    
     sudo cp $tmp_file /etc/hosts
+    rm $tmp_file
 
     flush_DNS
     echo 0 > $STATUS_FILE
@@ -206,23 +253,35 @@ show_status() {
 permanent_add() {
     get_permission
 
-    added_url="false"
-    current_blacklist=`cat $PERM_BLACKLIST`
+    url_added="false"
 
-    for var in "$@"
+    for url in "$@"
     do
-        if [[ "$current_blacklist" == *"$var"* ]]; then
-            echo "$var already in permanent blacklist"
-        elif [[ "$var" == www.*.* ]]; then
-            echo -e "127.0.0.1\t$var" >> $PERM_BLACKLIST
-            echo "$var added to permanent blacklist!"
-            added_url="true"
-        else
-            echo "Warning: $var not added. Start with www and end with domain (like www.google.com)"
+        orig_url="$url"
+        [[ "$url" == https://* ]] && url="${url:8}"
+        [[ "$url" == http://* ]] && url="${url:7}"
+        [[ "$url" != www.* ]] && url="www.$url"
+
+        url_line_no=$(find_url_line $url $BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in toggleable blacklist."
+            echo "Please remove it from that blacklist first."
+            continue
         fi
+
+        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in permanent blacklist."
+            continue
+        fi
+
+        echo -e "127.0.0.1\t$url" >> $PERM_BLACKLIST
+        echo -e "127.0.0.1\t${url:4}" >> $PERM_BLACKLIST
+        echo "$orig_url added to permanent blacklist!"
+        url_added="true"
     done
 
-    if [[ $added_url == "true" ]]; then
+    if [[ $url_added == "true" ]]; then
         block
         echo "Updated permanent blacklist in force."
         echo "You may need to restart your browser for changes to take effect."
@@ -234,18 +293,20 @@ empty() {
         > $BLACKLIST
         status_val=`cat $STATUS_FILE`
         if [[ "$status_val" == 1 ]]; then
-            unblock
+            block
         fi
         echo "Blacklist has been emptied!"
+
     elif [[ $1 == "p-blacklist" ]]; then
         > $PERM_BLACKLIST
         status_val=`cat $STATUS_FILE`
         if [[ "$status_val" == 1 ]]; then
-            unblock
+            block
         fi
         echo "Permanent blacklist has been emptied!"
+        
     else
-        echo "Error: argument must be blacklist or p-blacklist."
+        echo "Error: argument must be 'blacklist' or 'p-blacklist'."
     fi
 }
 
@@ -255,15 +316,9 @@ main() {
         exit
     fi
 
-    CONFIG_DIR=~/.config/orwell
-    BACKUP_FILE=$CONFIG_DIR"/backup_file"
-    BLACKLIST=$CONFIG_DIR"/blacklist"
-    PERM_BLACKLIST=$CONFIG_DIR"/perm_blacklist"
-    STATUS_FILE=$CONFIG_DIR"/status"
-
     make_config
 
-    optspec="a:x:d:e:tsl"
+    optspec="a:x:d:e:tslh"
     while getopts "$optspec" optchar
     do
         case "${optchar}" in
@@ -277,7 +332,7 @@ main() {
                 delete "${@:2}"
                 ;;
             e)
-                empty $2
+                empty "$2"
                 ;;
             t)
                 toggle
@@ -288,8 +343,11 @@ main() {
             l)
                 list
                 ;;
-            *)
+            h)
                 help
+                ;;
+            *)
+                echo "Type orwell -h for help."
                 ;;
         esac
     done
