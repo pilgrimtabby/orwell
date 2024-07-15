@@ -1,4 +1,5 @@
 # Orwell
+
 Block and unblock websites to maximize productivity. Compatible with MacOS only, but would probably work on Linux with a few tweaks.
 
 I wrote this program for personal use and there might be bugs; feel free to add an issue or pull request.
@@ -6,6 +7,10 @@ I wrote this program for personal use and there might be bugs; feel free to add 
 # Usage
 
 There are two blacklists, the togglable one (accessed using `-a` and `-t`) and the permanent one (accessed using `-x`). The permanent one is always active; the toggleable one can be enabled and disabled with the `-t` flag. This is useful if you want to allow some sites sometimes while always blocking others.
+
+Orwell operates on the DNS level (see [Warning](#warning)), so it can't block individual pages on a website. For instance, you can't block individual groups on Facebook; you have to either block Facebook entirely or leave it unblocked.
+
+## Options
 
 Use flag `-a` to add URL(s) to the toggleable blacklist (use `-t` to enable/disable).
 
@@ -34,6 +39,32 @@ Use flag `-s` to show toggleable blacklist status (enforced or not enforced).
 Use flag `-l` to list all sites on both blacklists.
 
 Use flag `-h` to show the help message.
+
+## Examples
+
+My friend Timmy is easily distracted while working, so he decides to block his favorite news and social media sites:
+
+    orwell -a nytimes.com msnbc.com foxnews.com wsj.com reddit.com instagram.com
+
+He's also trying to shake a bad online shopping habit, so he keeps certain sites blocked all the time:
+
+    orwell -x amazon.com ebay.com etsy.com temu.com
+
+When he opens his laptop to clock into work, he blocks his favorite sites by toggling the first blacklist:
+
+    orwell -t
+
+(He probably has to restart his internet browser for this to work.)
+
+After he clocks out, he re-enables them so he can doomscroll while he eats dinner:
+
+    orwell -t
+
+He can't remember what sites he's blocked, so he prints them to the console:
+
+    orwell -l
+
+And so on. Use it however you want.
 
 ### Why does Orwell ask for my password?
 

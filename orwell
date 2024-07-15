@@ -403,6 +403,10 @@ help() {
     echo "  active; the toggleable one can be enabled and disabled. Useful if you"
     echo "  want to allow some sites sometimes while always blocking others."
     echo
+    echo "NOTE"
+    echo "  Since Orwell operates on the DNS level, it cannot block only certain"
+    echo "  pages on websites -- you must block the whole website, or not at all."
+    echo
     echo "INFO"
     echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
     echo "  Source code here: https://github.com/pilgrimtabby/orwell"
