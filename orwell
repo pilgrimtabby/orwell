@@ -164,8 +164,8 @@ add() {
         status_val=`cat $STATUS_FILE`
         if [[ "$status_val" == 1 ]]; then
             block
-            echo "Updated blacklist in force."
-            echo "You may need to restart your browser for changes to take effect."
+            echo "Updated blacklist is IN FORCE."
+            echo "You may need to restart your internet browser to see changes."
         fi
     fi
 }
@@ -220,8 +220,8 @@ permanent_add() {
         else
             block
         fi
-        echo "Updated permanent blacklist in force."
-        echo "You may need to restart your browser for changes to take effect."
+        echo "Updated permanent blacklist is IN FORCE."
+        echo "You may need to restart your internet browser to see changes."
     fi
 }
 
@@ -283,13 +283,13 @@ delete() {
 
     if [[ $status_val == 1 && $blacklist_diff != 0 ]]; then
         block
-        echo "Updated blacklist in force."
-        echo "You may need to restart your browser for changes to take effect."
+        echo "Updated blacklist is IN FORCE."
+        echo "You may need to restart your internet browser to see changes."
     elif [[ $p_blacklist_diff != 0 ]]; then
         [[ $status_val == 0 ]] && unblock
         [[ $status_val == 1 ]] && block
-        echo "Updated permanent blacklist in force."
-        echo "You may need to restart your browser for changes to take effect."
+        echo "Updated permanent blacklist is IN FORCE."
+        echo "You may need to restart your internet browser to see changes."
     fi
 }
 
