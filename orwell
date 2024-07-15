@@ -144,6 +144,15 @@ add() {
             continue
         fi
 
+        # The password isn't required to modify the blacklist, but we don't
+        # want the user to modify the blacklist if they don't have the password
+        # since this would lead to the blacklist's current state not matching
+        # what is happening in /etc/hosts.
+        if [[ $(get_permission) == "false" ]]; then
+            echo "Error: password required to add URLs"
+            exit
+        fi
+
         # Add www. and non-www. url to blacklist
         echo -e "127.0.0.1\t$url" >> $BLACKLIST
         echo -e "127.0.0.1\t${url:4}" >> $BLACKLIST
@@ -187,6 +196,15 @@ permanent_add() {
             continue
         fi
 
+        # The password isn't required to modify the blacklist, but we don't
+        # want the user to modify the blacklist if they don't have the password
+        # since this would lead to the blacklist's current state not matching
+        # what is happening in /etc/hosts.
+        if [[ $(get_permission) == "false" ]]; then
+            echo "Error: password required to add URLs"
+            exit
+        fi
+
         echo -e "127.0.0.1\t$url" >> $PERM_BLACKLIST
         echo -e "127.0.0.1\t${url:4}" >> $PERM_BLACKLIST
         echo "$orig_url added to permanent blacklist!"
@@ -224,6 +242,15 @@ delete() {
 
         url_line_no=$(find_url_line $url $BLACKLIST)
         if [[ $url_line_no -ge 0 ]]; then
+            # The password isn't required to modify the blacklist, but we don't
+            # want the user to modify the blacklist if they don't have the password
+            # since this would lead to the blacklist's current state not matching
+            # what is happening in /etc/hosts.
+            if [[ $(get_permission) == "false" ]]; then
+                echo "Error: password required to delete URLs"
+                exit
+            fi
+
             sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
             echo "$orig_url removed from blacklist!"
             deleted_url="true"
@@ -231,6 +258,15 @@ delete() {
 
         url_line_no=$(find_url_line $url $PERM_BLACKLIST)
         if [[ $url_line_no -ge 0 ]]; then
+            # The password isn't required to modify the blacklist, but we don't
+            # want the user to modify the blacklist if they don't have the password
+            # since this would lead to the blacklist's current state not matching
+            # what is happening in /etc/hosts.
+            if [[ $(get_permission) == "false" ]]; then
+                echo "Error: password required to delete URLs"
+                exit
+            fi
+
             sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
             echo "$orig_url removed from permanent blacklist!"
             deleted_url="true"
@@ -245,9 +281,14 @@ delete() {
     p_blacklist_diff=$(( $p_blacklist_len_new - $p_blacklist_len ))
     status_val=`cat $STATUS_FILE`
 
-    if [[ $status_val == 1 && $blacklist_diff != 0 ]] || [[ $p_blacklist_diff != 0 ]]; then
+    if [[ $status_val == 1 && $blacklist_diff != 0 ]]; then
         block
         echo "Updated blacklist in force."
+        echo "You may need to restart your browser for changes to take effect."
+    elif [[ $p_blacklist_diff != 0 ]]; then
+        [[ $status_val == 0 ]] && unblock
+        [[ $status_val == 1 ]] && block
+        echo "Updated permanent blacklist in force."
         echo "You may need to restart your browser for changes to take effect."
     fi
 }
@@ -255,6 +296,15 @@ delete() {
 
 # Delete all entries on a blacklist
 empty() {
+    # The password isn't required to modify the blacklist, but we don't
+    # want the user to modify the blacklist if they don't have the password
+    # since this would lead to the blacklist's current state not matching
+    # what is happening in /etc/hosts.
+    if [[ $(get_permission) == "false" ]]; then
+        echo "Error: password required to delete URLs"
+        exit
+    fi
+
     if [[ "$1" == "blacklist" ]]; then
         > $BLACKLIST
         status_val=`cat $STATUS_FILE`
@@ -283,6 +333,11 @@ empty() {
 
 # Toggle the enforced status of the toggleable blackist
 toggle() {
+    if [[ $(get_permission) == "false" ]]; then
+        echo "Error: password required to toggle blacklist status"
+        exit
+    fi
+
     status_val=`cat $STATUS_FILE`
     if [[ "$status_val" == 0 ]]; then
         block
@@ -387,8 +442,11 @@ help() {
 
 
 # Ask for / extend sudo authentication credentials
+#
+# Returns:
+#   "true" if user enters correct password, "false" otherwise.
 get_permission() {
-    sudo -v
+    sudo -v &> /dev/null && echo "true" || echo "false"
 }
 
 
@@ -417,8 +475,6 @@ find_url_line() {
 # Doing this increases the chances of websites being blocked/unblocked
 # properly without needing to restart the web browser.
 flush_DNS() {
-    get_permission
-
     # Check system version. Versions after Big Sur (v. 11) don't need the
     # second-to-last command in this function.
     sys_version_full=`sw_vers -productVersion`
@@ -436,8 +492,6 @@ flush_DNS() {
 # This method is the only one that should be used to modify the status file
 # except for unblock.
 block() {
-    get_permission
-
     tmp_file=$CONFIG_DIR"/tmp"
     awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
 
@@ -464,8 +518,6 @@ block() {
 # This method is the only one that should be used to modify the status file
 # except for block().
 unblock() {
-    get_permission
-
     tmp_file=$CONFIG_DIR"/tmp"
     awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
 
