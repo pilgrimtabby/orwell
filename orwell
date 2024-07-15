@@ -46,11 +46,14 @@
 
 # Parse user flags
 main() {
+    [[ "$1" == "" ]] && help && exit
+
     # Make sure user doesn't pass any arguments that aren't flags
     # Non-dashed options and a single dash only aren't caught by getopts
     if [[ "$1" != -* ]] || [[ "$1" == "-" ]]; then
         echo "$0: illegal option -- $1"
         echo "Use a valid flag prefixed with '-'."
+        echo "Type orwell -h for a list of commands."
         exit
     fi
 
@@ -85,7 +88,7 @@ main() {
                 help
                 ;;
             *)
-                echo "Type orwell -h for help."
+                echo "Type orwell -h a list of commands."
                 ;;
         esac
     done
