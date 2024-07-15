@@ -341,10 +341,10 @@ toggle() {
     status_val=`cat $STATUS_FILE`
     if [[ "$status_val" == 0 ]]; then
         block
-        echo "Blacklist is being enforced!"
+        echo "Blacklist is now being ENFORCED!"
     else
         unblock
-        echo "Blacklist has been turned off."
+        echo "Blacklist is NO LONGER ENFORCED."
     fi
 }
 
@@ -353,10 +353,10 @@ toggle() {
 show_status() {
     status_val=`cat $STATUS_FILE`
     if [[ "$status_val" == 0 ]]; then
-        echo "Not enforced"
+        echo "Toggleable blacklist is NOT ENFORCED."
     else
-        echo "Enforced."
-        echo "If sites are still loading, try restarting your internet browser."
+        echo "Toggleable blacklist is ENFORCED!"
+        echo "Try restarting your internet browser if sites are not blocked correctly."
     fi
 }
 
@@ -368,25 +368,26 @@ list() {
     blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
     p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
 
-    echo "Blacklist:"
+    echo "Toggleable blacklist:"
     if [[ $blacklist_len == 0 ]]; then
-        echo "  Empty"
+        echo "    Empty"
     else
         index=0
         while IFS= read -r line; do
             # Trim the first 10 chars to avoid printing the DNS info and tab
-            [[ $(( $index % 2 )) == 1 ]] && echo "  ${line:10}"
+            [[ $(( $index % 2 )) == 1 ]] && echo "    ${line:10}"
             ((index++))
         done < $BLACKLIST
     fi
+    echo
 
     echo "Permanent blacklist:"
     if [[ $p_blacklist_len == 0 ]]; then
-        echo "  Empty"
+        echo "    Empty"
     else
         index=0
         while IFS= read -r line; do
-            [[ $(( index % 2 )) == 1 ]] && echo "  ${line:10}"
+            [[ $(( index % 2 )) == 1 ]] && echo "    ${line:10}"
             ((index++))
         done < $PERM_BLACKLIST
     fi
