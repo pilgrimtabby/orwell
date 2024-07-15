@@ -1,318 +1,56 @@
 #!/usr/bin/env bash
 
-make_config() {
-    CONFIG_DIR=~/.config/orwell
-    BACKUP_FILE=$CONFIG_DIR"/backup_file"
-    BLACKLIST=$CONFIG_DIR"/blacklist"
-    PERM_BLACKLIST=$CONFIG_DIR"/perm_blacklist"
-    STATUS_FILE=$CONFIG_DIR"/status"
 
-    [[ ! -d ~/.config ]] && mkdir ~/.config
-    [[ ! -d $CONFIG_DIR ]] && mkdir $CONFIG_DIR
-    [[ ! -f $BACKUP_FILE ]] && cp /etc/hosts $BACKUP_FILE
-    [[ ! -f $BLACKLIST ]] && touch $BLACKLIST
-    [[ ! -f $PERM_BLACKLIST ]] && touch $PERM_BLACKLIST
-    [[ ! -f $STATUS_FILE ]] && echo 0 > $STATUS_FILE
-}
+# Copyright (c) 2024 pilgrim_tabby
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-help() {
-    echo "DESCRIPTION"
-    echo "  Easily block and unblock websites on MacOS."
-    echo "  There are two blacklists, the togglable one (accessed using -a and -t)"
-    echo "  and the permanent one (accessed using -x). The permanent one is always"
-    echo "  active; the toggleable one can be enabled and disabled. Useful if you"
-    echo "  want to allow some sites sometimes while always blocking others."
-    echo
-    echo "INFO"
-    echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
-    echo "  Source code here: https://github.com/pilgrimtabby/orwell"
-    echo
-    echo "OPTIONS"
-    echo "  -a  Add URL(s) to the toggleable blacklist (use -t to enable/disable)."
-    echo "      Usage: orwell -a <URL> <URL> ..."
-    echo "      Example: orwell -a www.google.com"
-    echo
-    echo "  -x  Add URL(s) to the permanent blacklist."
-    echo "      This list is always enforced, even if the toggleable blacklist is off."
-    echo "      Usage: orwell -x <URL> <URL> ..."
-    echo "      Example: orwell -x www.google.com"
-    echo
-    echo "  -d  Delete URL(s) from both blacklists."
-    echo "      Usage: orwell -d <URL> <URL> ..."
-    echo "      Example: orwell -d www.google.com"
-    echo
-    echo "  -e  Empty either of the blacklists."
-    echo "      Usage: orwell -e blacklist   (empty toggleable blacklist)"
-    echo "             orwell -e p-blacklist (empty permanent blacklist)"
-    echo
-    echo "  -t  Toggle toggleable blacklist status (enforced or not enforced)."
-    echo
-    echo "  -s  Show toggleable blacklist status (enforced or not enforced)."
-    echo
-    echo "  -l  List all sites on both blacklists."
-    echo
-    echo "  -h  Show this help message."
-}
 
-get_permission() {
-    sudo -v
-}
+# Orwell is a simple command line tool that automates modifying the /etc/hosts file
+# and flushing the DNS cache to allow easy website blocking. It supports two blacklists,
+# a permanent (always-on) option and a toggleable option, to allow for greater
+# flexibility and customization.
+# See https://github.com/pilgrimtabby/orwell for the source code.
 
-find_url_line() {
-    line_no=1
-    while IFS= read -r line; do
-        [[ "${line:10}" == "$1" ]] && echo $line_no && return
-        ((line_no++))
-    done < $2
-    echo -1
-}
 
-add() {
-    get_permission
+################
+#              #
+# Main methods #
+#              #
+################
 
-    url_added="false"
 
-    for url in "$@"
-    do
-        orig_url="$url"
-        [[ "$url" == https://* ]] && url="${url:8}"
-        [[ "$url" == http://* ]] && url="${url:7}"
-        [[ "$url" != www.* ]] && url="www.$url"
-
-        url_line_no=$(find_url_line $url $BLACKLIST)
-        if [[ $url_line_no -ge 0 ]]; then
-            echo "Warning: $orig_url is already in blacklist."
-            continue
-        fi
-
-        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
-        if [[ $url_line_no -ge 0 ]]; then
-            echo "Warning: $orig_url is already in permanent blacklist."
-            echo "Please remove it from that blacklist first."
-            continue
-        fi
-
-        echo -e "127.0.0.1\t$url" >> $BLACKLIST
-        echo -e "127.0.0.1\t${url:4}" >> $BLACKLIST
-        echo "$orig_url added to blacklist!"
-        url_added="true"
-    done
-
-    if [[ $url_added == "true" ]]; then
-        status_val=`cat $STATUS_FILE`
-        if [[ "$status_val" == 1 ]]; then
-            block
-            echo "Updated blacklist in force."
-            echo "You may need to restart your browser for changes to take effect."
-        fi
-    fi
-}
-
-delete() {
-    get_permission
-
-    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
-    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
-
-    for url in "$@"
-    do
-        deleted_url="false"
-        orig_url="$url"
-        [[ "$url" == https://* ]] && url="${url:8}"
-        [[ "$url" == http://* ]] && url="${url:7}"
-        [[ "$url" != www.* ]] && url="www.$url"
-
-        url_line_no=$(find_url_line $url $BLACKLIST)
-        if [[ $url_line_no -ge 0 ]]; then
-            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
-            echo "$orig_url removed from blacklist!"
-            deleted_url="true"
-        fi
-
-        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
-        if [[ $url_line_no -ge 0 ]]; then
-            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
-            echo "$orig_url removed from permanent blacklist!"
-            deleted_url="true"
-        fi
-
-        [[ $deleted_url == "false" ]] && echo "Warning: URL not found."
-    done
-
-    blacklist_len_new=`wc -c < $BLACKLIST | tr -d " "`
-    p_blacklist_len_new=`wc -c < $PERM_BLACKLIST | tr -d " "`
-    blacklist_diff=$(( $blacklist_len_new - $blacklist_len ))
-    p_blacklist_diff=$(( $p_blacklist_len_new - $p_blacklist_len ))
-    status_val=`cat $STATUS_FILE`
-
-    if [[ $status_val == 1 && $blacklist_diff != 0 ]] || [[ $p_blacklist_diff != 0 ]]; then
-        block
-        echo "Updated blacklist in force."
-        echo "You may need to restart your browser for changes to take effect."
-    fi
-}
-
-list() {
-    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
-    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
-
-    echo "Blacklist:"
-    if [[ $blacklist_len == 0 ]]; then
-        echo "  Empty"
-    else
-        index=0
-        while IFS= read -r line; do
-            [[ $(( $index % 2 )) == 1 ]] && echo "  ${line:10}"
-            ((index++))
-        done < $BLACKLIST
-    fi
-
-    echo "Permanent blacklist:"
-    if [[ $p_blacklist_len == 0 ]]; then
-        echo "  Empty"
-    else
-        index=0
-        while IFS= read -r line; do
-            [[ $(( index % 2 )) == 1 ]] && echo "  ${line:10}"
-            ((index++))
-        done < $PERM_BLACKLIST
-    fi
-}
-
-toggle() {
-    get_permission
-
-    status_val=`cat $STATUS_FILE`
-    if [[ "$status_val" == 0 ]]; then
-        block
-        echo "Blacklist is being enforced!"
-    else
-        unblock
-        echo "Blacklist has been turned off."
-    fi
-}
-
-flush_DNS() {
-    get_permission
-
-    sys_version_full=`sw_vers -productVersion`
-    sys_version_plain=${sys_version_full:0:2}
-    [[ $sys_version_plain == *.* ]] && sys_version_plain=9
-
-    # This command only necessary on Big Sur and newer
-    [[ $sys_version_plain > 10 ]] && sudo dscacheutil -flushcache
-
-    sudo killall -HUP mDNSResponder
-}
-
-block() {
-    tmp_file=$CONFIG_DIR"/tmp"
-    awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
-
-    echo "# Orwell config -- do not alter anything beyond this point" >> $tmp_file
-    while IFS= read -r line; do
-        echo "$line"
-    done < $BLACKLIST >> $tmp_file
-    while IFS= read -r line; do
-        echo "$line"
-    done < $PERM_BLACKLIST >> $tmp_file
-
-    sudo cp $tmp_file /etc/hosts
-    rm $tmp_file
-
-    flush_DNS
-    echo 1 > $STATUS_FILE
-}
-
-unblock() {
-    tmp_file=$CONFIG_DIR"/tmp"
-    awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
-
-    echo "# Orwell config -- do not alter anything beyond this point" >> $tmp_file
-    while IFS= read -r line; do
-        echo "$line"
-    done < $PERM_BLACKLIST >> $tmp_file
-    
-    sudo cp $tmp_file /etc/hosts
-    rm $tmp_file
-
-    flush_DNS
-    echo 0 > $STATUS_FILE
-}
-
-show_status() {
-    status_val=`cat $STATUS_FILE`
-    if [[ "$status_val" == 0 ]]; then
-        echo "Not enforced"
-    else
-        echo "Enforced."
-        echo "If sites are still loading, try restarting your internet browser."
-    fi
-}
-
-permanent_add() {
-    get_permission
-
-    url_added="false"
-
-    for url in "$@"
-    do
-        orig_url="$url"
-        [[ "$url" == https://* ]] && url="${url:8}"
-        [[ "$url" == http://* ]] && url="${url:7}"
-        [[ "$url" != www.* ]] && url="www.$url"
-
-        url_line_no=$(find_url_line $url $BLACKLIST)
-        if [[ $url_line_no -ge 0 ]]; then
-            echo "Warning: $orig_url is already in toggleable blacklist."
-            echo "Please remove it from that blacklist first."
-            continue
-        fi
-
-        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
-        if [[ $url_line_no -ge 0 ]]; then
-            echo "Warning: $orig_url is already in permanent blacklist."
-            continue
-        fi
-
-        echo -e "127.0.0.1\t$url" >> $PERM_BLACKLIST
-        echo -e "127.0.0.1\t${url:4}" >> $PERM_BLACKLIST
-        echo "$orig_url added to permanent blacklist!"
-        url_added="true"
-    done
-
-    if [[ $url_added == "true" ]]; then
-        block
-        echo "Updated permanent blacklist in force."
-        echo "You may need to restart your browser for changes to take effect."
-    fi
-}
-
-empty() {
-    if [[ $1 == "blacklist" ]]; then
-        > $BLACKLIST
-        status_val=`cat $STATUS_FILE`
-        if [[ "$status_val" == 1 ]]; then
-            block
-        fi
-        echo "Blacklist has been emptied!"
-
-    elif [[ $1 == "p-blacklist" ]]; then
-        > $PERM_BLACKLIST
-        status_val=`cat $STATUS_FILE`
-        if [[ "$status_val" == 1 ]]; then
-            block
-        fi
-        echo "Permanent blacklist has been emptied!"
-        
-    else
-        echo "Error: argument must be 'blacklist' or 'p-blacklist'."
-    fi
-}
-
+# Parse user flags
 main() {
-    if [[ "$1" != -* ]]; then
-        help
+    # Make sure user doesn't pass any arguments that aren't flags
+    # Non-dashed options and a single dash only aren't caught by getopts
+    if [[ "$1" != -* ]] || [[ "$1" == "-" ]]; then
+        echo "$0: illegal option -- $1"
+        echo "Use a valid flag prefixed with '-'."
         exit
     fi
 
@@ -353,6 +91,399 @@ main() {
     done
 }
 
+
+# Create and populate the config folder if any files are missing
+make_config() {
+    CONFIG_DIR=~/.config/orwell
+    # Store original copy of /etc/hosts for emergencies.
+    BACKUP_FILE=$CONFIG_DIR"/backup_file"
+    BLACKLIST=$CONFIG_DIR"/blacklist"
+    PERM_BLACKLIST=$CONFIG_DIR"/perm_blacklist"
+    # Store 0 (toggleable blacklist not enforced) or 1 (enforced)
+    STATUS_FILE=$CONFIG_DIR"/status"
+
+    [[ ! -d ~/.config ]] && mkdir ~/.config
+    [[ ! -d $CONFIG_DIR ]] && mkdir $CONFIG_DIR
+    [[ ! -f $BACKUP_FILE ]] && cp /etc/hosts $BACKUP_FILE
+    [[ ! -f $BLACKLIST ]] && touch $BLACKLIST
+    [[ ! -f $PERM_BLACKLIST ]] && touch $PERM_BLACKLIST
+    [[ ! -f $STATUS_FILE ]] && echo 0 > $STATUS_FILE
+}
+
+
+# Add a URL to the toggleable blacklist
+add() {
+    url_added="false"
+
+    for url in "$@"
+    do
+        # Save original url so we can print it to the console
+        orig_url="$url"
+        # http references prevent this from working, so remove them here
+        [[ "$url" == https://* ]] && url="${url:8}"
+        [[ "$url" == http://* ]] && url="${url:7}"
+        # Standardize urls by making sure they all start with www.
+        # That way we can add both the www. and non-www. versions later
+        [[ "$url" != www.* ]] && url="www.$url"
+
+        url_line_no=$(find_url_line $url $BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in blacklist."
+            continue
+        fi
+
+        # It doesn't strike me as desirable to allow the URL to be on both
+        # blacklists, so we catch any duplicates here
+        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in permanent blacklist."
+            echo "Please remove it from that blacklist first."
+            continue
+        fi
+
+        # Add www. and non-www. url to blacklist
+        echo -e "127.0.0.1\t$url" >> $BLACKLIST
+        echo -e "127.0.0.1\t${url:4}" >> $BLACKLIST
+        echo "$orig_url added to blacklist!"
+        url_added="true"
+    done
+
+    if [[ $url_added == "true" ]]; then
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 1 ]]; then
+            block
+            echo "Updated blacklist in force."
+            echo "You may need to restart your browser for changes to take effect."
+        fi
+    fi
+}
+
+
+# Add a URL to the permanent blacklist
+# See add() for detailed documentation, since the two functions are similar
+permanent_add() {
+    url_added="false"
+
+    for url in "$@"
+    do
+        orig_url="$url"
+        [[ "$url" == https://* ]] && url="${url:8}"
+        [[ "$url" == http://* ]] && url="${url:7}"
+        [[ "$url" != www.* ]] && url="www.$url"
+
+        url_line_no=$(find_url_line $url $BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in toggleable blacklist."
+            echo "Please remove it from that blacklist first."
+            continue
+        fi
+
+        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            echo "Warning: $orig_url is already in permanent blacklist."
+            continue
+        fi
+
+        echo -e "127.0.0.1\t$url" >> $PERM_BLACKLIST
+        echo -e "127.0.0.1\t${url:4}" >> $PERM_BLACKLIST
+        echo "$orig_url added to permanent blacklist!"
+        url_added="true"
+    done
+
+    # Call unblock if toggleable blacklist isn't being enforced so that the
+    # permanent blacklist will still be updated.
+    if [[ $url_added == "true" ]]; then
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 0 ]]; then
+            unblock
+        else
+            block
+        fi
+        echo "Updated permanent blacklist in force."
+        echo "You may need to restart your browser for changes to take effect."
+    fi
+}
+
+
+# Delete a URL from a blacklist if it is found
+delete() {
+    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
+    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
+
+    for url in "$@"
+    do
+        deleted_url="false"
+        # Save original url so we can print it to the console
+        orig_url="$url"
+        [[ "$url" == https://* ]] && url="${url:8}"
+        [[ "$url" == http://* ]] && url="${url:7}"
+        [[ "$url" != www.* ]] && url="www.$url"
+
+        url_line_no=$(find_url_line $url $BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
+            echo "$orig_url removed from blacklist!"
+            deleted_url="true"
+        fi
+
+        url_line_no=$(find_url_line $url $PERM_BLACKLIST)
+        if [[ $url_line_no -ge 0 ]]; then
+            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
+            echo "$orig_url removed from permanent blacklist!"
+            deleted_url="true"
+        fi
+
+        [[ $deleted_url == "false" ]] && echo "Warning: URL not found."
+    done
+
+    blacklist_len_new=`wc -c < $BLACKLIST | tr -d " "`
+    p_blacklist_len_new=`wc -c < $PERM_BLACKLIST | tr -d " "`
+    blacklist_diff=$(( $blacklist_len_new - $blacklist_len ))
+    p_blacklist_diff=$(( $p_blacklist_len_new - $p_blacklist_len ))
+    status_val=`cat $STATUS_FILE`
+
+    if [[ $status_val == 1 && $blacklist_diff != 0 ]] || [[ $p_blacklist_diff != 0 ]]; then
+        block
+        echo "Updated blacklist in force."
+        echo "You may need to restart your browser for changes to take effect."
+    fi
+}
+
+
+# Delete all entries on a blacklist
+empty() {
+    if [[ "$1" == "blacklist" ]]; then
+        > $BLACKLIST
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 1 ]]; then
+            block
+        fi
+        echo "Blacklist has been emptied!"
+
+    # Call unblock if toggleable blacklist isn't being enforced so that the
+    # permanent blacklist will still be updated.
+    elif [[ "$1" == "p-blacklist" ]]; then
+        > $PERM_BLACKLIST
+        status_val=`cat $STATUS_FILE`
+        if [[ "$status_val" == 0 ]]; then
+            unblock
+        else
+            block
+        fi
+        echo "Permanent blacklist has been emptied!"
+        
+    else
+        echo "Error: argument must be 'blacklist' or 'p-blacklist'."
+    fi
+}
+
+
+# Toggle the enforced status of the toggleable blackist
+toggle() {
+    status_val=`cat $STATUS_FILE`
+    if [[ "$status_val" == 0 ]]; then
+        block
+        echo "Blacklist is being enforced!"
+    else
+        unblock
+        echo "Blacklist has been turned off."
+    fi
+}
+
+
+# Print the toggled status of the toggleable blacklist
+show_status() {
+    status_val=`cat $STATUS_FILE`
+    if [[ "$status_val" == 0 ]]; then
+        echo "Not enforced"
+    else
+        echo "Enforced."
+        echo "If sites are still loading, try restarting your internet browser."
+    fi
+}
+
+
+# Print all URLs on each blacklist
+# Only print every other URL to avoid showing both variants of each
+# (with and without www.)
+list() {
+    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
+    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
+
+    echo "Blacklist:"
+    if [[ $blacklist_len == 0 ]]; then
+        echo "  Empty"
+    else
+        index=0
+        while IFS= read -r line; do
+            # Trim the first 10 chars to avoid printing the DNS info and tab
+            [[ $(( $index % 2 )) == 1 ]] && echo "  ${line:10}"
+            ((index++))
+        done < $BLACKLIST
+    fi
+
+    echo "Permanent blacklist:"
+    if [[ $p_blacklist_len == 0 ]]; then
+        echo "  Empty"
+    else
+        index=0
+        while IFS= read -r line; do
+            [[ $(( index % 2 )) == 1 ]] && echo "  ${line:10}"
+            ((index++))
+        done < $PERM_BLACKLIST
+    fi
+}
+
+
+# Help menu
+help() {
+    echo "DESCRIPTION"
+    echo "  Easily block and unblock websites on MacOS."
+    echo "  There are two blacklists, the togglable one (accessed using -a and -t)"
+    echo "  and the permanent one (accessed using -x). The permanent one is always"
+    echo "  active; the toggleable one can be enabled and disabled. Useful if you"
+    echo "  want to allow some sites sometimes while always blocking others."
+    echo
+    echo "INFO"
+    echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
+    echo "  Source code here: https://github.com/pilgrimtabby/orwell"
+    echo
+    echo "OPTIONS"
+    echo "  -a  Add URL(s) to the toggleable blacklist (use -t to enable/disable)."
+    echo "      Usage: orwell -a <URL> <URL> ..."
+    echo "      Example: orwell -a www.google.com"
+    echo
+    echo "  -x  Add URL(s) to the permanent blacklist."
+    echo "      This list is always enforced, even if the toggleable blacklist is off."
+    echo "      Usage: orwell -x <URL> <URL> ..."
+    echo "      Example: orwell -x www.google.com"
+    echo
+    echo "  -d  Delete URL(s) from both blacklists."
+    echo "      Usage: orwell -d <URL> <URL> ..."
+    echo "      Example: orwell -d www.google.com"
+    echo
+    echo "  -e  Empty either of the blacklists."
+    echo "      Usage: orwell -e blacklist   (empty toggleable blacklist)"
+    echo "             orwell -e p-blacklist (empty permanent blacklist)"
+    echo
+    echo "  -t  Toggle toggleable blacklist status (enforced or not enforced)."
+    echo
+    echo "  -s  Show toggleable blacklist status (enforced or not enforced)."
+    echo
+    echo "  -l  List all sites on both blacklists."
+    echo
+    echo "  -h  Show this help message."
+}
+
+
+##################
+#                #
+# Helper methods #
+#                #
+##################
+
+
+# Ask for / extend sudo authentication credentials
+get_permission() {
+    sudo -v
+}
+
+
+# Find the line containing a given value in a given file.
+#
+# Line number starts at 1, since that is the convention used
+# by sed, and this function is designed to work with sed.
+#
+# Args:
+#   $1 (str): The value to search for.
+#   $2 (str): Path the the file to search.
+#
+# Returns:
+#   int: The line number, or -1 if the value isn't found.
+find_url_line() {
+    line_no=1
+    while IFS= read -r line; do
+        [[ "${line:10}" == "$1" ]] && echo $line_no && return
+        ((line_no++))
+    done < $2
+    echo -1
+}
+
+
+# Flush the DNS cache on MacOS.
+# Doing this increases the chances of websites being blocked/unblocked
+# properly without needing to restart the web browser.
+flush_DNS() {
+    get_permission
+
+    # Check system version. Versions after Big Sur (v. 11) don't need the
+    # second-to-last command in this function.
+    sys_version_full=`sw_vers -productVersion`
+    sys_version_plain=${sys_version_full:0:2}
+    [[ $sys_version_plain == *.* ]] && sys_version_plain=9
+
+    [[ $sys_version_plain > 10 ]] && sudo dscacheutil -flushcache
+    sudo killall -HUP mDNSResponder
+}
+
+
+# Enforce the toggleable blacklist.
+# A tmp file is used because echoing directly into /etc/hosts is difficult,
+# even with sudo. sudo cp is much easier and straightforward to implement.
+# This method is the only one that should be used to modify the status file
+# except for unblock.
+block() {
+    get_permission
+
+    tmp_file=$CONFIG_DIR"/tmp"
+    awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
+
+    # This comment is informational, but it also gives us something to search
+    # for for the `awk` command above and in unblock(). 
+    echo "# Orwell config -- do not alter anything beyond this point" >> $tmp_file
+    while IFS= read -r line; do
+        echo "$line"
+    done < $BLACKLIST >> $tmp_file
+    while IFS= read -r line; do
+        echo "$line"
+    done < $PERM_BLACKLIST >> $tmp_file
+
+    sudo cp $tmp_file /etc/hosts
+    rm $tmp_file
+
+    flush_DNS
+    echo 1 > $STATUS_FILE
+}
+
+
+# Stop enforcing the toggleable blacklist.
+# See block() for more details, since the methods are similar.
+# This method is the only one that should be used to modify the status file
+# except for block().
+unblock() {
+    get_permission
+
+    tmp_file=$CONFIG_DIR"/tmp"
+    awk "/# Orwell config/{exit}1" /etc/hosts > $tmp_file
+
+    echo "# Orwell config -- do not alter anything beyond this point" >> $tmp_file
+    while IFS= read -r line; do
+        echo "$line"
+    done < $PERM_BLACKLIST >> $tmp_file  # Put the perm. blacklist in, since it's always on
+    
+    sudo cp $tmp_file /etc/hosts
+    rm $tmp_file
+
+    flush_DNS
+    echo 0 > $STATUS_FILE
+}
+
+
+##########
+#        #
+# Script #
+#        #
+##########
 
 
 main $@
