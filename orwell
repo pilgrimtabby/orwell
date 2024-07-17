@@ -272,7 +272,7 @@ delete() {
             deleted_url="true"
         fi
 
-        [[ $deleted_url == "false" ]] && echo "Warning: URL not found."
+        [[ $deleted_url == "false" ]] && echo "Warning: $orig_url not found."
     done
 
     blacklist_len_new=`wc -c < $BLACKLIST | tr -d " "`
