@@ -1,6 +1,8 @@
 # Orwell
 
-Block and unblock websites to maximize productivity. Compatible with MacOS only, but would probably work on Linux with a few tweaks.
+Block and unblock websites to maximize productivity.
+
+Compatible with Linux (tested on Ubuntu 20.04 LTS) and MacOS (tested on MacOS Ventura).
 
 I wrote this program for personal use and there might be bugs; feel free to add an issue or pull request.
 
@@ -27,10 +29,11 @@ Use flag `-d` to delete URL(s) from both blacklists.
 - Usage: `orwell -d <URL> <URL>` ...
 - Example: `orwell -d www.google.com` deletes google.com from any blacklist where it is present.
 
-Use flag `-e` to empty either of the blacklists.
+Use flag `-e` to empty either or both blacklists.
 
 - Usage: `orwell -e blacklist` to empty the toggleable blacklist
 - `orwell -e p-blacklist` to empty the permanent blacklist
+- `orwell -e all` to empty both blacklists
 
 Use flag `-t` to toggle toggleable blacklist status (enforced or not enforced).
 
@@ -42,25 +45,25 @@ Use flag `-h` to show the help message.
 
 ## Examples
 
-My friend Timmy is easily distracted while working, so he decides to block his favorite news and social media sites:
+Let's say you're easily distracted while working. You can block your favorite news and social media sites:
 
     orwell -a nytimes.com msnbc.com foxnews.com wsj.com reddit.com instagram.com
 
-He's also trying to shake a bad online shopping habit, so he keeps certain sites blocked all the time:
+Maybe you're trying to shake an online shopping habit. You can keep certain sites blocked always:
 
     orwell -x amazon.com ebay.com etsy.com temu.com
 
-When he opens his laptop to clock into work, he blocks his favorite sites by toggling the first blacklist:
+When you open your laptop to get something done, you can block your favorite sites by toggling the first blacklist:
 
     orwell -t
 
-(He probably has to restart his internet browser for this to work.)
+(You might have to restart your browser and/or wait a few minutes.)
 
-After he clocks out, he re-enables them so he can doomscroll while he eats dinner:
+Later, you can re-enable them:
 
     orwell -t
 
-He can't remember what sites he's blocked, so he prints them to the console:
+If you can't remember what sites are blocked, you can print them to the console:
 
     orwell -l
 

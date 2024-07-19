@@ -221,7 +221,7 @@ permanent_add() {
             block
         fi
         echo "Updated permanent blacklist is IN FORCE."
-        echo "You may need to restart your internet browser to see changes."
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     fi
 }
 
@@ -230,6 +230,7 @@ permanent_add() {
 delete() {
     blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
     p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
+    os=`uname`  # Get operating system for sed commands
 
     for url in "$@"
     do
@@ -251,7 +252,13 @@ delete() {
                 exit
             fi
 
-            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
+            # MacOS doesn't use the GNU sed, so it needs an extra blank param
+            # after `-i`. Passing this to GNU sed breaks the command, though.
+            if [[ $os == "Darwin" ]]; then
+                sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
+            else  # Linux
+                sed -i "${url_line_no},$(( $url_line_no + 1 ))d" $BLACKLIST
+            fi
             echo "$orig_url removed from blacklist!"
             deleted_url="true"
         fi
@@ -267,7 +274,13 @@ delete() {
                 exit
             fi
 
-            sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
+            # MacOS doesn't use the GNU sed, so it needs an extra blank param
+            # after `-i`. Passing this to GNU sed breaks the command, though.
+            if [[ $os == "Darwin" ]]; then
+                sed -i "" "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
+            else  # Linux
+                sed -i "${url_line_no},$(( $url_line_no + 1 ))d" $PERM_BLACKLIST
+            fi
             echo "$orig_url removed from permanent blacklist!"
             deleted_url="true"
         fi
@@ -282,14 +295,18 @@ delete() {
     status_val=`cat $STATUS_FILE`
 
     if [[ $status_val == 1 && $blacklist_diff != 0 ]]; then
+        # Only need to do anything if the toggleable blacklist is currently
+        # active, since next time it's turned on it'll update anyway
         block
         echo "Updated blacklist is IN FORCE."
-        echo "You may need to restart your internet browser to see changes."
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     elif [[ $p_blacklist_diff != 0 ]]; then
+        # Regardless of toggleable blacklist status, make sure p_blacklist is
+        # up-to-date
         [[ $status_val == 0 ]] && unblock
         [[ $status_val == 1 ]] && block
         echo "Updated permanent blacklist is IN FORCE."
-        echo "You may need to restart your internet browser to see changes."
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     fi
 }
 
@@ -325,8 +342,12 @@ empty() {
         fi
         echo "Permanent blacklist has been emptied!"
         
+    elif [[ "$1" == "all" ]]; then
+        "$0" -e blacklist
+        "$0" -e p-blacklist
+
     else
-        echo "Error: argument must be 'blacklist' or 'p-blacklist'."
+        echo "Error: argument must be 'blacklist', 'p-blacklist', or 'all'."
     fi
 }
 
@@ -342,9 +363,11 @@ toggle() {
     if [[ "$status_val" == 0 ]]; then
         block
         echo "Blacklist is now being ENFORCED!"
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     else
         unblock
         echo "Blacklist is NO LONGER ENFORCED."
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     fi
 }
 
@@ -354,9 +377,10 @@ show_status() {
     status_val=`cat $STATUS_FILE`
     if [[ "$status_val" == 0 ]]; then
         echo "Toggleable blacklist is NOT ENFORCED."
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     else
         echo "Toggleable blacklist is ENFORCED!"
-        echo "Try restarting your internet browser if sites are not blocked correctly."
+        echo "You may need to restart your internet browser or wait a few minutes to see changes."
     fi
 }
 
@@ -425,9 +449,10 @@ help() {
     echo "      Usage: orwell -d <URL> <URL> ..."
     echo "      Example: orwell -d www.google.com"
     echo
-    echo "  -e  Empty either of the blacklists."
+    echo "  -e  Empty either or both blacklists."
     echo "      Usage: orwell -e blacklist   (empty toggleable blacklist)"
     echo "             orwell -e p-blacklist (empty permanent blacklist)"
+    echo "             orwell -e all (empty both blacklists)"
     echo
     echo "  -t  Toggle toggleable blacklist status (enforced or not enforced)."
     echo
@@ -476,18 +501,28 @@ find_url_line() {
 }
 
 
-# Flush the DNS cache on MacOS.
+# Flush the DNS cache.
 # Doing this increases the chances of websites being blocked/unblocked
 # properly without needing to restart the web browser.
 flush_DNS() {
-    # Check system version. Versions after Big Sur (v. 11) don't need the
-    # second-to-last command in this function.
-    sys_version_full=`sw_vers -productVersion`
-    sys_version_plain=${sys_version_full:0:2}
-    [[ $sys_version_plain == *.* ]] && sys_version_plain=9
+    os=`uname`  # Get operating system
+    if [[ $os == "Darwin" ]]; then
+        # Check system version. Versions after Big Sur (v. 11) don't need the
+        # second-to-last command in this function.
+        sys_version_full=`sw_vers -productVersion`
+        sys_version_plain=${sys_version_full:0:2}
+        [[ $sys_version_plain == *.* ]] && sys_version_plain=9
 
-    [[ $sys_version_plain > 10 ]] && sudo dscacheutil -flushcache
-    sudo killall -HUP mDNSResponder
+        [[ $sys_version_plain > 10 ]] && sudo dscacheutil -flushcache
+        sudo killall -HUP mDNSResponder
+    else  # Linux
+        # There are various methods for flushing the DNS cache that are distro-
+        # dependent. We use all three here so we can be sure one method works,
+        # and ignore the command-not-found and service-not-found errors.
+        sudo resolvectl flush-caches &> /dev/null
+        sudo killall -HUP dnsmasq &> /dev/null
+        sudo systemctl restart nscd.service &> /dev/null
+    fi
 }
 
 
