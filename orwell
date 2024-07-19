@@ -73,16 +73,16 @@ main() {
                 delete "${@:2}"
                 ;;
             e)
-                empty "$2"
+                empty "${@:2}"
                 ;;
             t)
-                toggle
+                toggle "${@:2}"
                 ;;
             s)
-                show_status
+                show_status "${@:2}"
                 ;;
             l)
-                list
+                list "${@:2}"
                 ;;
             h)
                 help
@@ -149,7 +149,7 @@ add() {
         # since this would lead to the blacklist's current state not matching
         # what is happening in /etc/hosts.
         if [[ $(get_permission) == "false" ]]; then
-            echo "Error: password required to add URLs"
+            echo "Error: -a: password required to add URLs"
             exit
         fi
 
@@ -201,7 +201,7 @@ permanent_add() {
         # since this would lead to the blacklist's current state not matching
         # what is happening in /etc/hosts.
         if [[ $(get_permission) == "false" ]]; then
-            echo "Error: password required to add URLs"
+            echo "Error: -x: password required to add URLs"
             exit
         fi
 
@@ -248,7 +248,7 @@ delete() {
             # since this would lead to the blacklist's current state not matching
             # what is happening in /etc/hosts.
             if [[ $(get_permission) == "false" ]]; then
-                echo "Error: password required to delete URLs"
+                echo "Error: -d: password required to delete URLs"
                 exit
             fi
 
@@ -270,7 +270,7 @@ delete() {
             # since this would lead to the blacklist's current state not matching
             # what is happening in /etc/hosts.
             if [[ $(get_permission) == "false" ]]; then
-                echo "Error: password required to delete URLs"
+                echo "Error: -d: password required to delete URLs"
                 exit
             fi
 
@@ -318,7 +318,13 @@ empty() {
     # since this would lead to the blacklist's current state not matching
     # what is happening in /etc/hosts.
     if [[ $(get_permission) == "false" ]]; then
-        echo "Error: password required to delete URLs"
+        echo "Error: -e: password required to delete URLs"
+        exit
+    fi
+
+    if [[ $# -gt 1 ]]; then
+        echo "Error: -e: please specify exactly one argument."
+        echo "Options: 'blacklist', 'p-blacklist', 'all'"
         exit
     fi
 
@@ -347,7 +353,7 @@ empty() {
         "$0" -e p-blacklist
 
     else
-        echo "Error: argument must be 'blacklist', 'p-blacklist', or 'all'."
+        echo "Error: -e: valid arguments are 'blacklist', 'p-blacklist', 'all'"
     fi
 }
 
@@ -355,7 +361,12 @@ empty() {
 # Toggle the enforced status of the toggleable blackist
 toggle() {
     if [[ $(get_permission) == "false" ]]; then
-        echo "Error: password required to toggle blacklist status"
+        echo "Error: -t: password required to toggle blacklist status"
+        exit
+    fi
+
+    if [[ $# -ge 1 ]]; then
+        echo "Error: -t: this option does not take arguments"
         exit
     fi
 
@@ -374,6 +385,11 @@ toggle() {
 
 # Print the toggled status of the toggleable blacklist
 show_status() {
+    if [[ $# -ge 1 ]]; then
+        echo "Error: -s: this option does not take arguments"
+        exit
+    fi
+
     status_val=`cat $STATUS_FILE`
     if [[ "$status_val" == 0 ]]; then
         echo "Toggleable blacklist is NOT ENFORCED."
@@ -389,6 +405,11 @@ show_status() {
 # Only print every other URL to avoid showing both variants of each
 # (with and without www.)
 list() {
+    if [[ $# -ge 1 ]]; then
+        echo "Error: -l: this option does not take arguments"
+        exit
+    fi
+
     blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
     p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
 
