@@ -1,6 +1,6 @@
 # Orwell
 
-Block and unblock websites to maximize productivity.
+Block and unblock websites at the DNS level to maximize productivity.
 
 Compatible with Linux (tested on Ubuntu 20.04 LTS) and MacOS (tested on MacOS Ventura).
 
@@ -35,11 +35,17 @@ Use flag `-e` to empty either or both blacklists.
 - `orwell -e p-blacklist` to empty the permanent blacklist
 - `orwell -e all` to empty both blacklists
 
+Use flag `-l` to output the contents of either or both blacklists.
+
+- Usage: `orwell -l` or `orwell -l all` to output both blacklists' contents
+- `orwell -l blacklist` to output the contents of the toggleable blacklist
+- `orwell -l p-blacklist` to output the contents of the permanent blacklist
+
 Use flag `-t` to toggle toggleable blacklist status (enforced or not enforced).
 
 Use flag `-s` to show toggleable blacklist status (enforced or not enforced).
 
-Use flag `-l` to list all sites on both blacklists.
+Use flag `-v` to display current version number.
 
 Use flag `-h` to show the help message.
 

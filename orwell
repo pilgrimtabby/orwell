@@ -43,6 +43,8 @@
 #              #
 ################
 
+ORWELL_VERSION="v0.0.1"
+
 
 # Parse user flags
 main() {
@@ -59,7 +61,7 @@ main() {
 
     make_config
 
-    optspec="a:x:d:e:tslh"
+    optspec="a:x:d:e:ltsvh"
     while getopts "$optspec" optchar
     do
         case "${optchar}" in
@@ -75,14 +77,17 @@ main() {
             e)
                 empty "${@:2}"
                 ;;
+            l)
+                list "${@:2}"
+                ;;
             t)
                 toggle "${@:2}"
                 ;;
             s)
                 show_status "${@:2}"
                 ;;
-            l)
-                list "${@:2}"
+            v)
+                echo "$ORWELL_VERSION"
                 ;;
             h)
                 help
@@ -373,7 +378,7 @@ toggle() {
     status_val=`cat $STATUS_FILE`
     if [[ "$status_val" == 0 ]]; then
         block
-        echo "Blacklist is now being ENFORCED!"
+        echo "Blacklist is now IN FORCE!"
         echo "You may need to restart your internet browser or wait a few minutes to see changes."
     else
         unblock
@@ -401,40 +406,47 @@ show_status() {
 }
 
 
-# Print all URLs on each blacklist
-# Only print every other URL to avoid showing both variants of each
-# (with and without www.)
+# Output all URLs on a given blacklist. By default, prints contents of both
+# (but only prints variants w/out www. for simplicity)
 list() {
-    if [[ $# -ge 1 ]]; then
-        echo "Error: -l: this option does not take arguments"
+    if [[ $# -gt 1 ]]; then
+        echo "Error: -l: please specify exactly one or zero arguments."
+        echo "Options: 'blacklist', 'p-blacklist', 'all' (default)"
         exit
     fi
 
-    blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
-    p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
+    if [[ "$1" == "blacklist" ]]; then
+        echo "Toggleable blacklist:"
 
-    echo "Toggleable blacklist:"
-    if [[ $blacklist_len == 0 ]]; then
-        echo "    Empty"
-    else
-        index=0
-        while IFS= read -r line; do
-            # Trim the first 10 chars to avoid printing the DNS info and tab
-            [[ $(( $index % 2 )) == 1 ]] && echo "    ${line:10}"
-            ((index++))
-        done < $BLACKLIST
-    fi
-    echo
+        blacklist_len=`wc -c < $BLACKLIST | tr -d " "`
+        if [[ $blacklist_len == 0 ]]; then
+            echo "    Empty"
+        else
+            while IFS= read -r line; do
+                # Trim the first 10 chars to avoid printing the DNS info and tab
+                [[ "$line" != *www.* ]] && echo "    ${line:10}"
+            done < $BLACKLIST | sort
+        fi
 
-    echo "Permanent blacklist:"
-    if [[ $p_blacklist_len == 0 ]]; then
-        echo "    Empty"
+    elif [[ "$1" == "p-blacklist" ]]; then
+        echo "Permanent blacklist:"
+
+        p_blacklist_len=`wc -c < $PERM_BLACKLIST | tr -d " "`
+        if [[ $p_blacklist_len == 0 ]]; then
+            echo "    Empty"
+        else
+            while IFS= read -r line; do
+                # Trim the first 10 chars to avoid printing the DNS info and tab
+                [[ "$line" != *www.* ]] && echo "    ${line:10}"
+            done < $PERM_BLACKLIST | sort
+        fi
+    
+    elif [[ "$1" == "all" || $# == 0 ]]; then
+        "$0" -l blacklist && echo
+        "$0" -l p-blacklist
+
     else
-        index=0
-        while IFS= read -r line; do
-            [[ $(( index % 2 )) == 1 ]] && echo "    ${line:10}"
-            ((index++))
-        done < $PERM_BLACKLIST
+        echo "Error: -l: valid arguments are 'blacklist', 'p-blacklist', 'all' (default)"
     fi
 }
 
@@ -442,6 +454,9 @@ list() {
 # Help menu
 help() {
     echo "DESCRIPTION"
+    echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
+    echo "  Source code: https://github.com/pilgrimtabby/orwell"
+    echo
     echo "  Easily block and unblock websites on MacOS."
     echo "  There are two blacklists, the togglable one (accessed using -a and -t)"
     echo "  and the permanent one (accessed using -x). The permanent one is always"
@@ -450,37 +465,42 @@ help() {
     echo
     echo "NOTE"
     echo "  Since Orwell operates on the DNS level, it cannot block only certain"
-    echo "  pages on websites -- you must block the whole website, or not at all."
+    echo "  pages on websites -- it blocks the whole website or not at all."
     echo
-    echo "INFO"
-    echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
-    echo "  Source code here: https://github.com/pilgrimtabby/orwell"
+    echo "WARNING"
+    echo "  Orwell modifies /etc/hosts and flushes the DNS cache."
+    echo "  Use at your own risk."
     echo
     echo "OPTIONS"
     echo "  -a  Add URL(s) to the toggleable blacklist (use -t to enable/disable)."
-    echo "      Usage: orwell -a <URL> <URL> ..."
-    echo "      Example: orwell -a www.google.com"
+    echo "      Usage:    orwell -a <URL> <URL> ..."
+    echo "      Example:  orwell -a www.google.com"
     echo
     echo "  -x  Add URL(s) to the permanent blacklist."
     echo "      This list is always enforced, even if the toggleable blacklist is off."
-    echo "      Usage: orwell -x <URL> <URL> ..."
-    echo "      Example: orwell -x www.google.com"
+    echo "      Usage:    orwell -x <URL> <URL> ..."
+    echo "      Example:  orwell -x www.google.com"
     echo
-    echo "  -d  Delete URL(s) from both blacklists."
-    echo "      Usage: orwell -d <URL> <URL> ..."
-    echo "      Example: orwell -d www.google.com"
+    echo "  -d  Delete URL(s) from either or both blacklists."
+    echo "      Usage:    orwell -d <URL> <URL> ..."
+    echo "      Example:  orwell -d www.google.com"
     echo
     echo "  -e  Empty either or both blacklists."
-    echo "      Usage: orwell -e blacklist   (empty toggleable blacklist)"
-    echo "             orwell -e p-blacklist (empty permanent blacklist)"
-    echo "             orwell -e all (empty both blacklists)"
+    echo "      Usage:  orwell -e blacklist    (empty toggleable blacklist)"
+    echo "              orwell -e p-blacklist  (empty permanent blacklist)"
+    echo "              orwell -e all          (empty both blacklists)"
     echo
-    echo "  -t  Toggle toggleable blacklist status (enforced or not enforced)."
+    echo "  -l  Output contents of either or both blacklists."
+    echo "      Usage:  orwell -l | orwell -l all  (output both blacklists)"
+    echo "              orwell -l blacklist        (output toggleable blacklist)"
+    echo "              orwell -l p-blacklist      (output permanent blacklist)"
     echo
-    echo "  -s  Show toggleable blacklist status (enforced or not enforced)."
+    echo "  -t  Toggle toggleable blacklist status (enforced vs. not enforced)."
     echo
-    echo "  -l  List all sites on both blacklists."
+    echo "  -s  Show toggleable blacklist status (enforced vs. not enforced)."
     echo
+    echo "  -v  Show version number."
+    echo 
     echo "  -h  Show this help message."
 }
 
