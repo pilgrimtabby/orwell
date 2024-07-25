@@ -617,6 +617,6 @@ unblock() {
 #        #
 ##########
 
-ORWELL_VERSION="v0.0.1"
+ORWELL_VERSION="v0.1.0"
 
 main $@
