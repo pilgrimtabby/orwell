@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 # Copyright (c) 2024 pilgrim_tabby
 # All rights reserved.
 #
@@ -42,9 +41,6 @@
 # Main methods #
 #              #
 ################
-
-ORWELL_VERSION="v0.0.1"
-
 
 # Parse user flags
 main() {
@@ -621,5 +617,6 @@ unblock() {
 #        #
 ##########
 
+ORWELL_VERSION="v0.0.1"
 
 main $@
