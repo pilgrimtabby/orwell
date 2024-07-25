@@ -16,30 +16,30 @@ Orwell operates on the DNS level (see [Warning](#warning)), so it can't block in
 
 Use flag `-a` to add URL(s) to the toggleable blacklist (use `-t` to enable/disable).
 
-- Usage: `orwell -a <URL> <URL>` ...
-- Example: `orwell -a www.google.com` adds google.com to the blacklist.
+- Usage: `orwell.sh -a <URL> <URL>` ...
+- Example: `orwell.sh -a www.google.com` adds google.com to the blacklist.
 
 Use flag `-x` to add URL(s) to the permanent blacklist.
 
-- Usage: `orwell -x <URL> <URL>` ...
-- Example: `orwell -x www.google.com` adds google.com to the permanent blacklist.
+- Usage: `orwell.sh -x <URL> <URL>` ...
+- Example: `orwell.sh -x www.google.com` adds google.com to the permanent blacklist.
 
 Use flag `-d` to delete URL(s) from both blacklists.
 
-- Usage: `orwell -d <URL> <URL>` ...
-- Example: `orwell -d www.google.com` deletes google.com from any blacklist where it is present.
+- Usage: `orwell.sh -d <URL> <URL>` ...
+- Example: `orwell.sh -d www.google.com` deletes google.com from any blacklist where it is present.
 
 Use flag `-e` to empty either or both blacklists.
 
-- Usage: `orwell -e blacklist` to empty the toggleable blacklist
-- `orwell -e p-blacklist` to empty the permanent blacklist
-- `orwell -e all` to empty both blacklists
+- Usage: `orwell.sh -e blacklist` to empty the toggleable blacklist
+- `orwell.sh -e p-blacklist` to empty the permanent blacklist
+- `orwell.sh -e all` to empty both blacklists
 
 Use flag `-l` to output the contents of either or both blacklists.
 
-- Usage: `orwell -l` or `orwell -l all` to output both blacklists' contents
-- `orwell -l blacklist` to output the contents of the toggleable blacklist
-- `orwell -l p-blacklist` to output the contents of the permanent blacklist
+- Usage: `orwell.sh -l` or `orwell.sh -l all` to output both blacklists' contents
+- `orwell.sh -l blacklist` to output the contents of the toggleable blacklist
+- `orwell.sh -l p-blacklist` to output the contents of the permanent blacklist
 
 Use flag `-t` to toggle toggleable blacklist status (enforced or not enforced).
 
@@ -53,25 +53,25 @@ Use flag `-h` to show the help message.
 
 Let's say you're easily distracted while working. You can block your favorite news and social media sites:
 
-    orwell -a nytimes.com msnbc.com foxnews.com wsj.com reddit.com instagram.com
+    orwell.sh -a nytimes.com msnbc.com foxnews.com wsj.com reddit.com instagram.com
 
 Maybe you're trying to shake an online shopping habit. You can keep certain sites blocked always:
 
-    orwell -x amazon.com ebay.com etsy.com temu.com
+    orwell.sh -x amazon.com ebay.com etsy.com temu.com
 
 When you open your laptop to get something done, you can block your favorite sites by toggling the first blacklist:
 
-    orwell -t
+    orwell.sh -t
 
 (You might have to restart your browser and/or wait a few minutes.)
 
 Later, you can re-enable them:
 
-    orwell -t
+    orwell.sh -t
 
 If you can't remember what sites are blocked, you can print them to the console:
 
-    orwell -l
+    orwell.sh -l
 
 And so on. Use it however you want.
 
@@ -81,7 +81,7 @@ Orwell uses your password to flush the DNS cache and edit `/etc/hosts` (see [War
 
 # Installation
 
-Download the source code and move `orwell` somewhere safe, like `/usr/local/bin`. You may need to run `chmod +x orwell` to make the program executable.
+Download the source code and move `orwell.sh` somewhere safe, like `/usr/local/bin`. You may need to run `chmod +x orwell.sh` to make the program executable.
 
 # Warning
 

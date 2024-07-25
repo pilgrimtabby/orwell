@@ -449,6 +449,7 @@ list() {
 
 # Help menu
 help() {
+    exec_name=`basename "$0"`
     echo "DESCRIPTION"
     echo "  Thanks for using Orwell! (c) 2024 pilgrim_tabby."
     echo "  Source code: https://github.com/pilgrimtabby/orwell"
@@ -469,27 +470,27 @@ help() {
     echo
     echo "OPTIONS"
     echo "  -a  Add URL(s) to the toggleable blacklist (use -t to enable/disable)."
-    echo "      Usage:    orwell -a <URL> <URL> ..."
-    echo "      Example:  orwell -a www.google.com"
+    echo "      Usage:    $exec_name -a <URL> <URL> ..."
+    echo "      Example:  $exec_name -a www.google.com"
     echo
     echo "  -x  Add URL(s) to the permanent blacklist."
     echo "      This list is always enforced, even if the toggleable blacklist is off."
-    echo "      Usage:    orwell -x <URL> <URL> ..."
-    echo "      Example:  orwell -x www.google.com"
+    echo "      Usage:    $exec_name -x <URL> <URL> ..."
+    echo "      Example:  $exec_name -x www.google.com"
     echo
     echo "  -d  Delete URL(s) from either or both blacklists."
-    echo "      Usage:    orwell -d <URL> <URL> ..."
-    echo "      Example:  orwell -d www.google.com"
+    echo "      Usage:    $exec_name -d <URL> <URL> ..."
+    echo "      Example:  $exec_name -d www.google.com"
     echo
     echo "  -e  Empty either or both blacklists."
-    echo "      Usage:  orwell -e blacklist    (empty toggleable blacklist)"
-    echo "              orwell -e p-blacklist  (empty permanent blacklist)"
-    echo "              orwell -e all          (empty both blacklists)"
+    echo "      Usage:  $exec_name -e blacklist    (empty toggleable blacklist)"
+    echo "              $exec_name -e p-blacklist  (empty permanent blacklist)"
+    echo "              $exec_name -e all          (empty both blacklists)"
     echo
     echo "  -l  Output contents of either or both blacklists."
-    echo "      Usage:  orwell -l | orwell -l all  (output both blacklists)"
-    echo "              orwell -l blacklist        (output toggleable blacklist)"
-    echo "              orwell -l p-blacklist      (output permanent blacklist)"
+    echo "      Usage:  $exec_name -l | $exec_name -l all  (output both blacklists)"
+    echo "              $exec_name -l blacklist        (output toggleable blacklist)"
+    echo "              $exec_name -l p-blacklist      (output permanent blacklist)"
     echo
     echo "  -t  Toggle toggleable blacklist status (enforced vs. not enforced)."
     echo
